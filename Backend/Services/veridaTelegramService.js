@@ -1,16 +1,15 @@
-// Backend/Services/veridaTelegramService.js
 const { VeridaClient } = require('@verida/client-ts');
 const { NodeAccount } = require('@verida/account-node');
 require('dotenv').config();
 
-class VeridaTelegramService {
+class VeridaService {
   constructor() {
     this.client = null;
-    this.context = null;
+    this.initialized = false;
   }
 
   async initialize() {
-    if (this.client) return this.client;
+    if (this.initialized) return this.client;
     
     try {
       const privateKey = process.env.VERIDA_PRIVATE_KEY;
@@ -31,6 +30,7 @@ class VeridaTelegramService {
       });
       
       await this.client.connect(account);
+      this.initialized = true;
       return this.client;
     } catch (error) {
       console.error('Failed to initialize Verida client:', error);
@@ -93,7 +93,25 @@ class VeridaTelegramService {
     }
   }
 
-  // This method can be called by your score calculation code
+  async getTelegramMetrics(did) {
+    try {
+      const telegramData = await this.getTelegramData(did);
+      
+      if (!telegramData) {
+        return 0; // No telegram connected = 0 metrics
+      }
+      
+      // Basic score just for having connected
+      // In a production environment, you would analyze more data points from Telegram
+      
+      // Return value between 0 and 1 (as a normalized metric)
+      return this.calculateTelegramScore(did) / 10;
+    } catch (error) {
+      console.error('Error calculating Telegram metrics:', error);
+      return 0;
+    }
+  }
+
   async calculateTelegramScore(did) {
     try {
       const telegramData = await this.getTelegramData(did);
@@ -110,6 +128,46 @@ class VeridaTelegramService {
       return 0;
     }
   }
+
+  async storeUserTelegramPrivateData(did, privateData) {
+    try {
+      if (!did) {
+        throw new Error('Verida DID is required');
+      }
+      
+      const context = await this.getUserContext(did);
+      const db = await context.openDatabase('telegram_private_data');
+      
+      // Store the private data
+      const dataToStore = {
+        ...privateData,
+        savedDate: new Date().toISOString(),
+        type: 'telegram_private_data'
+      };
+      
+      await db.save(dataToStore);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Failed to store Telegram private data in Verida:', error);
+      throw error;
+    }
+  }
+
+  async disconnectVerida() {
+    if (this.client) {
+      try {
+        await this.client.disconnect();
+        this.client = null;
+        this.initialized = false;
+        return { success: true };
+      } catch (error) {
+        console.error('Failed to disconnect Verida client:', error);
+        throw error;
+      }
+    }
+    return { success: true };
+  }
 }
 
-module.exports = new VeridaTelegramService();
+module.exports = new VeridaService();
