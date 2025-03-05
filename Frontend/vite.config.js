@@ -21,4 +21,16 @@ export default defineConfig({
   optimizeDeps: {
     include: ['@verida/account-web-vault'],
   },
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Ignore specific warnings about pure annotations in Privy package
+        if (warning.code === 'ANNOTATION_PURE_COMMENT' && 
+            warning.message.includes('@privy-io/react-auth')) {
+          return;
+        }
+        warn(warning);
+      }
+    }
+  }
 });
