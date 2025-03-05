@@ -1,32 +1,17 @@
-const telegramService = require('../services/telegram');
-const veridaService = require('../services/verida');
+const express = require("express");
+const { getWalletDetails } = require("../controllers/BlockchainController");
 
-exports.fetchPrivateData = async (req, res) => {
+const router = express.Router();
+
+// Fixed route to include address parameter
+router.get("/fetch-blockchain-data/:address", async (req, res) => {
   try {
-    const { telegramId, veridaDid } = req.body;
-    
-    if (!telegramId || !veridaDid) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Telegram ID and Verida DID are required' 
-      });
-    }
-    
-    // Fetch private data from Telegram
-    const privateData = await telegramService.fetchUserData(telegramId);
-    
-    // Store in Verida vault
-    await veridaService.storeUserTelegramPrivateData(veridaDid, privateData);
-    
-    res.json({
-      success: true,
-      message: 'Telegram private data fetched and stored successfully'
-    });
+    const { address } = req.params;
+    const data = await getWalletDetails(address);
+    res.json(data);
   } catch (error) {
-    console.error('Failed to fetch Telegram data:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch and store Telegram data'
-    });
+    res.status(500).json({ error: error.message });
   }
-}; 
+});
+
+module.exports = router;
